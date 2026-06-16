@@ -1,14 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Windows.Forms;
-using System.IO;
-using System.Diagnostics;
 using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace wolf3d_map
 {
@@ -22,15 +19,15 @@ namespace wolf3d_map
         private const int START_X = 0;
         private const int START_Y = 25;
 
-        private string dosbox_procname;
-        private uint dosbox_baseaddr;
+        private string dosbox_host;
+        private int dosbox_port;
 
-        private MemoryEdit.Memory mem;
+        private DosBoxApi api;
+        private MapData mapData;
 
         private Brush[] colors;
         private List<GameConfig> game_list = new List<GameConfig>();
         GameConfig game_sel;
-        private Process game;
 
         public Form1()
         {
@@ -39,10 +36,10 @@ namespace wolf3d_map
             {
                 using (StreamReader sr = new StreamReader(cfg_file))
                 {
-
                     colors = Array.ConvertAll(sr.ReadLine().Split(','), x => ProcessColor(x));
-                    dosbox_procname = sr.ReadLine();
-                    dosbox_baseaddr = uint.Parse(sr.ReadLine(), NumberStyles.HexNumber);
+                    dosbox_host = sr.ReadLine();
+                    dosbox_port = int.Parse(sr.ReadLine());
+                    
                     while (sr.Peek() > -1)
                     {
                         GameConfig tmp = new GameConfig();
@@ -62,7 +59,14 @@ namespace wolf3d_map
                 MessageBox.Show("Error while loading settings:\n" + ex.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
                 Environment.Exit(0);
             }
-            mem = new MemoryEdit.Memory();
+
+            api = new DosBoxApi(dosbox_host, dosbox_port);
+            mapData = new MapData
+            {
+                map_data = new ushort[MAP_SIZE_DATA * 2],
+                pos_x = 0,
+                pos_y = 0
+            };
             cb_game.Items.AddRange(game_list.Select(x => x.name).ToArray());
             cb_game.SelectedIndex = 0;
             tmr_refresh.Enabled = true;
@@ -90,37 +94,38 @@ namespace wolf3d_map
 
         protected override void OnPaint(PaintEventArgs e)
         {
-            //Get addresses
-            uint addr_base = (uint)mem.Read(dosbox_baseaddr);
-            //Wolf3d
-            /*uint addr_map = addr_base + 0x280E0;
-            uint addr_pos_x = addr_base + 0x46824;
-            uint addr_pos_y = addr_base + 0x46826;
-            //Tristania 3d
-            uint addr_map = addr_base + 0x2B140;
-            uint addr_pos_x = addr_base + 0x4AB21;
-            uint addr_pos_y = addr_base + 0x4AB22;*/
-            //
-            uint addr_map = addr_base + game_sel.addr_map;
-            uint addr_pos_x = addr_base + game_sel.addr_pos_x;
-            uint addr_pos_y = addr_base + game_sel.addr_pos_y;
+            DrawMap(e.Graphics);
+            base.OnPaint(e);
+        }
+
+        private async Task ReadFromMemory()
+        {
             //Get map data
-            byte[] tmp_data = mem.ReadBytes(addr_map, MAP_SIZE_DATA * 4);
+            byte[] tmp_data = await api.ReadMemory(game_sel.addr_map, MAP_SIZE_DATA * 4);
             //Get player pos
-            byte pos_x = mem.ReadByte(addr_pos_x);
-            byte pos_y = mem.ReadByte(addr_pos_y);
+            byte pos_x = await api.ReadByte(game_sel.addr_pos_x);
+            byte pos_y = await api.ReadByte(game_sel.addr_pos_y);
             //Process map data
             ushort[] map_data = new ushort[MAP_SIZE_DATA * 2];
             for (int i = 0; i < MAP_SIZE_DATA * 2; i++)
             {
                 map_data[i] = BitConverter.ToUInt16(tmp_data, i * 2);
             }
+            mapData = new MapData
+            {
+                map_data = map_data,
+                pos_x = pos_x,
+                pos_y = pos_y
+            };
+        }
+
+        private void DrawMap(Graphics gfx)
+        {
             //Draw map
-            Graphics gfx = e.Graphics;
             gfx.FillRectangle(colors[0], START_X, START_Y, 512, 512);
             for (int i = 0; i < MAP_SIZE_DATA; i++)
             {
-                ushort tmp = map_data[i];
+                ushort tmp = mapData.map_data[i];
                 bool empty = game_sel.empty_tiles.Contains(tmp);
                 bool door = game_sel.door_tiles.Contains(tmp);
                 if (!empty && !door)
@@ -131,14 +136,13 @@ namespace wolf3d_map
             //Draw objects
             for (int i = 0; i < MAP_SIZE_DATA; i++)
             {
-                ushort tmp = map_data[MAP_SIZE_DATA + i];
+                ushort tmp = mapData.map_data[MAP_SIZE_DATA + i];
                 bool obj = game_sel.block_tiles.Contains(tmp);
                 if (obj)
                     DrawBlock(gfx, colors[3], i);
             }
             //Draw player
-            gfx.FillRectangle(colors[4], START_X + pos_x * BLOCK_SIZE, START_Y + pos_y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
-            base.OnPaint(e);
+            gfx.FillRectangle(colors[4], START_X + mapData.pos_x * BLOCK_SIZE, START_Y + mapData.pos_y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
         }
 
         private void DrawBlock(Graphics gfx, Brush col, int i)
@@ -151,24 +155,11 @@ namespace wolf3d_map
             game_sel = game_list[cb_game.SelectedIndex];
         }
 
-        private void tmr_refresh_Tick(object sender, EventArgs e)
+        private async void tmr_refresh_Tick(object sender, EventArgs e)
         {
-            if (game == null || game.HasExited)
-            {
-                ScanForGame();
-                return;
-            }
+            await Task.Run(ReadFromMemory);
             Invalidate();
         }
 
-        private void ScanForGame()
-        {
-            Process[] procs = Process.GetProcessesByName(dosbox_procname);
-            if (procs.Length > 0)
-            {
-                game = procs[0];
-                mem.Attach((uint)game.Id, MemoryEdit.Memory.ProcessAccessFlags.All);
-            }
-        }
     }
 }
