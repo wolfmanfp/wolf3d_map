@@ -1,10 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
 using System.Linq;
-using System.Text;
 using System.Windows.Forms;
 using System.IO;
 using System.Diagnostics;
@@ -23,7 +20,7 @@ namespace wolf3d_map
         private const int START_Y = 25;
 
         private string dosbox_procname;
-        private uint dosbox_baseaddr;
+        private ulong dosbox_baseaddr;
 
         private MemoryEdit.Memory mem;
 
@@ -39,10 +36,9 @@ namespace wolf3d_map
             {
                 using (StreamReader sr = new StreamReader(cfg_file))
                 {
-
                     colors = Array.ConvertAll(sr.ReadLine().Split(','), x => ProcessColor(x));
                     dosbox_procname = sr.ReadLine();
-                    dosbox_baseaddr = uint.Parse(sr.ReadLine(), NumberStyles.HexNumber);
+                    dosbox_baseaddr = ulong.Parse(sr.ReadLine(), NumberStyles.HexNumber);
                     while (sr.Peek() > -1)
                     {
                         GameConfig tmp = new GameConfig();
@@ -90,20 +86,9 @@ namespace wolf3d_map
 
         protected override void OnPaint(PaintEventArgs e)
         {
-            //Get addresses
-            uint addr_base = (uint)mem.Read(dosbox_baseaddr);
-            //Wolf3d
-            /*uint addr_map = addr_base + 0x280E0;
-            uint addr_pos_x = addr_base + 0x46824;
-            uint addr_pos_y = addr_base + 0x46826;
-            //Tristania 3d
-            uint addr_map = addr_base + 0x2B140;
-            uint addr_pos_x = addr_base + 0x4AB21;
-            uint addr_pos_y = addr_base + 0x4AB22;*/
-            //
-            uint addr_map = addr_base + game_sel.addr_map;
-            uint addr_pos_x = addr_base + game_sel.addr_pos_x;
-            uint addr_pos_y = addr_base + game_sel.addr_pos_y;
+            ulong addr_map = dosbox_baseaddr + game_sel.addr_map;
+            ulong addr_pos_x = dosbox_baseaddr + game_sel.addr_pos_x;
+            ulong addr_pos_y = dosbox_baseaddr + game_sel.addr_pos_y;
             //Get map data
             byte[] tmp_data = mem.ReadBytes(addr_map, MAP_SIZE_DATA * 4);
             //Get player pos

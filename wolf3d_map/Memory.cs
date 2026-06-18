@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Text;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
 
@@ -58,7 +57,7 @@ namespace MemoryEdit
 
         [DllImport("kernel32.dll")]
         static extern bool ReadProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress,
-            byte[] lpBuffer, UIntPtr nSize, uint lpNumberOfBytesWritten);
+            byte[] lpBuffer, UIntPtr nSize, out uint lpNumberOfBytesRead);
         [DllImport("kernel32.dll")]
         static extern bool WriteProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress,
             byte[] lpBuffer, UIntPtr nSize, uint lpNumberOfBytesWritten);
@@ -141,7 +140,16 @@ namespace MemoryEdit
             byte[] bytes = new byte[blen];
 
             //Reading the specific address within the process
-            ReadProcessMemory(Handle, (IntPtr)pointer, bytes, (UIntPtr)blen, 0);
+            ReadProcessMemory(Handle, (IntPtr)pointer, bytes, (UIntPtr)blen, out _);
+            return bytes;
+        }
+        
+        public byte[] ReadBytes(ulong pointer, int blen)
+        {
+            byte[] bytes = new byte[blen];
+
+            //Reading the specific address within the process
+            ReadProcessMemory(Handle, (IntPtr)pointer, bytes, (UIntPtr)blen, out _);
             return bytes;
         }
 
@@ -151,7 +159,16 @@ namespace MemoryEdit
             byte[] bytes = new byte[1];
 
             //Reading the specific address within the process
-            ReadProcessMemory(Handle, (IntPtr)pointer, bytes, (UIntPtr)1, 0);
+            ReadProcessMemory(Handle, (IntPtr)pointer, bytes, (UIntPtr)1, out _);
+            return bytes[0];
+        }
+        
+        public byte ReadByte(ulong pointer)
+        {
+            byte[] bytes = new byte[1];
+
+            //Reading the specific address within the process
+            ReadProcessMemory(Handle, (IntPtr)pointer, bytes, (UIntPtr)1, out _);
             return bytes[0];
         }
 
@@ -161,7 +178,7 @@ namespace MemoryEdit
             byte[] bytes = new byte[4];
 
             //Reading the specific address within the process
-            ReadProcessMemory(Handle, (IntPtr)pointer, bytes, (UIntPtr)4, 0);
+            ReadProcessMemory(Handle, (IntPtr)pointer, bytes, (UIntPtr)4, out _);
             return BitConverter.ToSingle(bytes, 0);
         }
 
@@ -171,7 +188,7 @@ namespace MemoryEdit
             byte[] bytes = new byte[8];
 
             //Reading the specific address within the process
-            ReadProcessMemory(Handle, (IntPtr)pointer, bytes, (UIntPtr)8, 0);
+            ReadProcessMemory(Handle, (IntPtr)pointer, bytes, (UIntPtr)8, out _);
             return BitConverter.ToDouble(bytes, 0);
         }
 
@@ -181,7 +198,7 @@ namespace MemoryEdit
             byte[] bytes = new byte[blen];
 
             //Reading the specific address within the process
-            ReadProcessMemory(Handle, (IntPtr)pointer, bytes, (UIntPtr)blen, 0);
+            ReadProcessMemory(Handle, (IntPtr)pointer, bytes, (UIntPtr)blen, out _);
             return BitConverter.ToString(bytes, 0);
         }
 
@@ -191,9 +208,20 @@ namespace MemoryEdit
             byte[] bytes = new byte[4];
 
             //Reading the specific address within the process
-            ReadProcessMemory(Handle, (IntPtr)pointer, bytes, (UIntPtr)4, 0);
+            ReadProcessMemory(Handle, (IntPtr)pointer, bytes, (UIntPtr)4, out _);
             //Return the result as 4 byte int
             return BitConverter.ToInt32(bytes, 0);
+        }
+        
+        //Int64
+        public long ReadInt64(ulong pointer)
+        {
+            byte[] bytes = new byte[8];
+
+            //Reading the specific address within the process
+            ReadProcessMemory(Handle, (IntPtr)pointer, bytes, (UIntPtr)8, out _);
+            //Return the result as 8 byte int
+            return BitConverter.ToInt64(bytes, 0);
         }
 
         //Memory writing
