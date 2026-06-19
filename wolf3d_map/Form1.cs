@@ -1,10 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
 using System.Linq;
-using System.Text;
 using System.Windows.Forms;
 using System.IO;
 using System.Diagnostics;
@@ -39,7 +36,6 @@ namespace wolf3d_map
             {
                 using (StreamReader sr = new StreamReader(cfg_file))
                 {
-
                     colors = Array.ConvertAll(sr.ReadLine().Split(','), x => ProcessColor(x));
                     dosbox_procname = sr.ReadLine();
                     dosbox_baseaddr = uint.Parse(sr.ReadLine(), NumberStyles.HexNumber);
@@ -53,6 +49,7 @@ namespace wolf3d_map
                         ProcessData(tmp.empty_tiles, sr.ReadLine().Split(','));
                         ProcessData(tmp.door_tiles, sr.ReadLine().Split(','));
                         ProcessData(tmp.block_tiles, sr.ReadLine().Split(','));
+                        ProcessData(tmp.secret_door_tiles, sr.ReadLine().Split(','));
                         game_list.Add(tmp);
                     }
                 }
@@ -133,8 +130,11 @@ namespace wolf3d_map
             {
                 ushort tmp = map_data[MAP_SIZE_DATA + i];
                 bool obj = game_sel.block_tiles.Contains(tmp);
+                bool secret_door = game_sel.secret_door_tiles.Contains(tmp);
                 if (obj)
                     DrawBlock(gfx, colors[3], i);
+                if (secret_door)
+                    DrawBlock(gfx, colors[2], i);
             }
             //Draw player
             gfx.FillRectangle(colors[4], START_X + pos_x * BLOCK_SIZE, START_Y + pos_y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);

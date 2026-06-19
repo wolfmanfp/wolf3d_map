@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System.Collections.Generic;
 
 namespace wolf3d_map
 {
@@ -14,5 +11,6 @@ namespace wolf3d_map
         public List<ushort> empty_tiles = new List<ushort>();
         public List<ushort> door_tiles = new List<ushort>();
         public List<ushort> block_tiles = new List<ushort>();
+        public List<ushort> secret_door_tiles = new List<ushort>();
     }
 }
